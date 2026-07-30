@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import de.training.taskapi.domain.Task;
 import de.training.taskapi.domain.TaskPriority;
 import de.training.taskapi.service.TaskService;
+import de.training.taskapi.config.SecurityHeadersFilter;
 import java.time.Instant;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
