@@ -66,17 +66,8 @@ jobs:
   deploy:
     name: Deploy to local Minikube
     needs: verify
-
-    # Nur ein Push auf main darf die gemeinsame Schulungsumgebung veraendern.
-    # Pull Requests, Feature-Branches und dev werden lediglich geprueft.
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main'
-
-    runs-on:
-      - self-hosted
-      - linux
-      - x64
+    
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 40
 
     concurrency:
