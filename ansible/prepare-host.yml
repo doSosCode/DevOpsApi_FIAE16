@@ -83,11 +83,13 @@
       ansible.builtin.uri:
         url: https://dl.k8s.io/release/stable.txt
         return_content: true
+        validate_certs: false
       register: kubectl_stable
 
     - name: kubectl installieren
       ansible.builtin.get_url:
         url: "https://dl.k8s.io/release/{{ kubectl_stable.content | trim }}/bin/linux/{{ binary_arch }}/kubectl"
+        validate_certs: false
         dest: /usr/local/bin/kubectl
         owner: root
         group: root
@@ -96,6 +98,7 @@
     - name: Minikube installieren
       ansible.builtin.get_url:
         url: "https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-{{ binary_arch }}"
+        validate_certs: false
         dest: /usr/local/bin/minikube
         owner: root
         group: root
@@ -110,6 +113,7 @@
     - name: Offizielles OpenTofu-Installationsskript herunterladen
       ansible.builtin.get_url:
         url: https://get.opentofu.org/install-opentofu.sh
+        validate_certs: false
         dest: /tmp/install-opentofu.sh
         mode: "0755"
       when: tofu_version.rc != 0
