@@ -9,8 +9,8 @@
   vars:
     # Ansible wird vom Self-hosted Runner lokal gestartet. Die Fakten werden vor
     # dem privilege escalation gesammelt; ansible_user_id ist daher der Runner-Benutzer.
-    runner_user: "{{ ansible_user_id }}"
-    runner_home: "{{ ansible_env.HOME }}"
+    runner_user: "devops"
+    runner_home: "/home/devops"
 
     # Die Werte kommen als Workflow-Inputs ueber Umgebungsvariablen. Dadurch
     # werden keine Benutzereingaben direkt in einen Shell-Befehl interpoliert.
@@ -136,13 +136,20 @@
         state: directory
         mode: "0700"
       loop:
-        - "{{ ansible_env.HOME }}/.kube"
-        - "{{ ansible_env.HOME }}/.minikube"
-        - "{{ ansible_env.HOME }}/.local/state/task-api-training"
-        - "{{ ansible_env.HOME }}/.local/share/task-api-training/tls"
+        - "{{ runner_home }}/.kube"
+        - "{{ runner_home }}/.minikube"
+        - "{{ runner_home }}/.local/state/task-api-training"
+        - "{{ runner_home }}/.local/share/task-api-training/tls"
+
+    - name: needrestart Konfigurationsverzeichnis erstellen
+      ansible.builtin.file:
+        path: /etc/needrestart/conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
 
     - name: Automatischen Runner-Neustart durch needrestart verhindern
-      # Paketupdates dürfen den laufenden GitHub-Job nicht unterbrechen.
       ansible.builtin.copy:
         dest: /etc/needrestart/conf.d/actions_runner_services.conf
         owner: root
