@@ -3,7 +3,7 @@
 Lokale DevOps-Demonstration fuer eine minimale Ubuntu-VM unter Hyper-V. Nach
 der einmaligen Installation und Registrierung eines GitHub Self-hosted Runners
 werden Host-Konfiguration, Tests, Infrastruktur, Datenbank, Container und
-Deployment automatisiert.
+Deployment automatisiert..
 
 ## Gesamtarchitektur
 
