@@ -1,0 +1,74 @@
+---
+- name: Betriebsbereitschaft der DevOps-Schulungs-VM prüfen
+  hosts: runner
+  connection: local
+  gather_facts: true
+
+  vars:
+    minikube_profile: minikube
+    minikube_cpus: 4
+    minikube_memory_mb: 6144
+
+  tasks:
+    - name: Bootstrap-Marker prüfen
+      ansible.builtin.stat:
+        path: /var/lib/task-api-training-bootstrap-complete
+      register: bootstrap_marker
+
+    - name: Verständliche Meldung bei fehlendem Bootstrap ausgeben
+      ansible.builtin.assert:
+        that: bootstrap_marker.stat.exists
+        fail_msg: >-
+          Die VM ist noch nicht vorbereitet. Starte zuerst den Workflow
+          '01 - Bootstrap Ubuntu VM' und starte die VM danach neu.
+
+    - name: Installierte Werkzeuge und Docker-Zugriff prüfen
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - java -version
+        - docker --version
+        - docker info
+        - kubectl version --client
+        - minikube version
+        - tofu version
+      changed_when: false
+
+    - name: Minikube-Status prüfen
+      ansible.builtin.command:
+        cmd: minikube status --profile "{{ minikube_profile }}"
+      register: minikube_status
+      changed_when: false
+      failed_when: false
+
+    - name: Minikube mit Docker-Treiber starten
+      ansible.builtin.command:
+        cmd: >-
+          minikube start
+          --profile {{ minikube_profile }}
+          --driver docker
+          --cpus {{ minikube_cpus }}
+          --memory {{ minikube_memory_mb }}
+          --wait all
+      when: minikube_status.rc != 0
+      changed_when: true
+
+    - name: NGINX-Ingress-Addon aktivieren
+      ansible.builtin.command:
+        cmd: minikube addons enable ingress --profile "{{ minikube_profile }}"
+      register: ingress_addon
+      changed_when: "'enabled' in ingress_addon.stdout and 'already' not in ingress_addon.stdout"
+
+    - name: Auf den Kubernetes-Node warten
+      ansible.builtin.command:
+        cmd: kubectl wait --for=condition=Ready node --all --timeout=180s
+      changed_when: false
+
+    - name: Auf den Ingress-Controller warten
+      ansible.builtin.command:
+        cmd: >-
+          kubectl wait
+          --namespace ingress-nginx
+          --for=condition=Available
+          deployment/ingress-nginx-controller
+          --timeout=300s
+      changed_when: false

@@ -1,0 +1,27 @@
+# Diese Datei wird durch Ansible verwaltet.
+# Sie konfiguriert Git fuer den Benutzer, unter dem der Self-hosted Runner laeuft.
+# Zugangsdaten oder private SSH-Schluessel gehoeren nicht in diese Datei.
+
+[user]
+    name = {{ git_user_name }}
+    email = {{ git_user_email }}
+
+[init]
+    defaultBranch = main
+
+[pull]
+    # Fuer den Unterricht ist ein expliziter Merge beim Pull leichter nachvollziehbar.
+    rebase = false
+
+[fetch]
+    # Entfernt Referenzen auf Remote-Branches, die auf GitHub geloescht wurden.
+    prune = true
+
+[core]
+    # Verhindert, dass Windows-Zeilenenden in Shell-Skripten committed werden.
+    autocrlf = input
+    editor = nano
+
+[push]
+    # git push uebertraegt nur den aktuell ausgecheckten Branch.
+    default = simple

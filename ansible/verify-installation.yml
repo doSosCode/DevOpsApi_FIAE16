@@ -1,0 +1,29 @@
+---
+# Prüfung direkt nach der Installation. Docker-Zugriff als normaler Benutzer wird
+# erst nach dem erforderlichen Neustart im normalen Deployment geprüft.
+- name: Installierte Werkzeuge kontrollieren
+  hosts: runner
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Werkzeugversionen abfragen
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - java -version
+        - docker --version
+        - kubectl version --client
+        - minikube version
+        - tofu version
+        - openssl version
+        - git --version
+
+    - name: Globale Git-Konfiguration des Runner-Benutzers pruefen
+      ansible.builtin.command: "git config --global --get {{ item }}"
+      loop:
+        - user.name
+        - user.email
+        - init.defaultBranch
+        - core.autocrlf
+      changed_when: false
+      changed_when: false

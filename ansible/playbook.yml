@@ -1,0 +1,4 @@
+---
+# Zentraler Einstiegspunkt für jeden normalen Deployment-Lauf.
+- name: Vorbereitete VM und Minikube verifizieren
+  ansible.builtin.import_playbook: verify.yml
