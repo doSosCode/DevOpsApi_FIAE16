@@ -1,0 +1,10 @@
+.git
+.github
+.gradle
+.idea
+.vscode
+infrastructure/.terraform
+infrastructure/*.tfstate*
+build/tmp
+README.md
+docs

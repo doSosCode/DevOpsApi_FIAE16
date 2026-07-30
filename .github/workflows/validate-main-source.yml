@@ -1,0 +1,32 @@
+name: Validate Main Pull Request Source
+
+# main darf in diesem Schulungsmodell nur ueber einen Pull Request von dev
+# aktualisiert werden. Ein Feature-Branch darf nicht direkt nach main mergen.
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate-source:
+    name: Validate source branch
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Nur dev als Quellbranch fuer main erlauben
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Quellbranch: ${{ github.head_ref }}"
+          echo "Zielbranch:  ${{ github.base_ref }}"
+
+          if [[ "${{ github.head_ref }}" != "dev" ]]; then
+            echo "::error::Pull Requests nach main sind nur vom Branch dev erlaubt."
+            exit 1
+          fi
+
+          echo "Quellbranch dev ist erlaubt."

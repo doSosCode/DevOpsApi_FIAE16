@@ -1,0 +1,86 @@
+name: 01 - Bootstrap Ubuntu VM
+
+# Einmaliger Workflow fuer eine minimale Ubuntu-VM mit registriertem GitHub Runner.
+# Er installiert die Werkzeuge, konfiguriert Git und bereitet den Host fuer CI/CD vor.
+on:
+  workflow_dispatch:
+    inputs:
+      git_user_name:
+        description: Git-Anzeigename fuer manuelle Commits auf der VM
+        required: true
+        type: string
+      git_user_email:
+        description: Bei GitHub hinterlegte E-Mail oder GitHub-No-Reply-Adresse
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: task-api-vm-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    name: Ubuntu-VM vorbereiten
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 45
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v5
+        with:
+          # Verhindert, dass das kurzlebige Workflow-Token in .git/config verbleibt.
+          persist-credentials: false
+
+      - name: Skripte ausfuehrbar machen
+        run: chmod +x scripts/*.sh
+
+      - name: Ansible-Grundlage installieren
+        # Auf einer frischen VM kann Ansible sich nicht selbst installieren.
+        run: ./scripts/bootstrap-ansible.sh
+
+      - name: VM mit Ansible konfigurieren
+        # Workflow-Eingaben werden als Umgebungsvariablen uebergeben. Das vermeidet
+        # fehleranfaellige oder unsichere Shell-Interpolation in --extra-vars.
+        env:
+          TRAINING_GIT_USER_NAME: ${{ inputs.git_user_name }}
+          TRAINING_GIT_USER_EMAIL: ${{ inputs.git_user_email }}
+        run: |
+          ansible-playbook \
+            --inventory ansible/inventory.ini \
+            ansible/prepare-host.yml
+
+      - name: Installationsstand pruefen
+        run: |
+          ansible-playbook \
+            --inventory ansible/inventory.ini \
+            ansible/verify-installation.yml
+
+      - name: Git-Konfiguration anzeigen
+        # Es werden nur unkritische Git-Einstellungen ausgegeben, keine Zugangsdaten.
+        run: |
+          git config --global --get user.name
+          git config --global --get user.email
+          git config --global --get init.defaultBranch
+          git config --global --get core.autocrlf
+
+      - name: Neustart-Hinweis
+        run: |
+          cat <<'NOTICE'
+          Die Softwareinstallation und Git-Konfiguration sind abgeschlossen.
+
+          WICHTIG:
+          Docker wurde installiert und der Runner-Benutzer der Gruppe 'docker'
+          hinzugefuegt. Der bereits laufende Runner uebernimmt diese Gruppe erst
+          nach einem Neustart.
+
+          Manueller Schritt auf der VM:
+            sudo reboot
+
+          Danach:
+          1. Warten, bis der Runner in GitHub wieder 'Idle' ist.
+          2. Optional scripts/setup-git-ssh.sh fuer manuelle Pushes ausfuehren.
+          3. Workflow '02 - Build, Test and Deploy' starten.
+          NOTICE

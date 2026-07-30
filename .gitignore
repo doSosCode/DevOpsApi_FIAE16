@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Lokale Geheimnisse
+.env
+*.pem
+*.key
+
+# OpenTofu / Terraform
+infrastructure/.terraform/
+infrastructure/*.tfstate
+infrastructure/*.tfstate.*
+infrastructure/tfplan
+
+# Ansible
+*.retry
+
+# Betriebssystem
+.DS_Store
+Thumbs.db

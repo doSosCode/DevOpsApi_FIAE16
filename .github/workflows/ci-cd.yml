@@ -1,0 +1,186 @@
+name: 02 - Build, Test and Deploy
+
+# Die CI-Pruefung laeuft fuer Pull Requests nach dev und main sowie fuer
+# den gemeinsamen Stand auf dev und main. Ein Deployment findet nur nach
+# einem Push beziehungsweise Merge auf main statt.
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  push:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: "21"
+  MINIKUBE_PROFILE: "minikube"
+  K8S_NAMESPACE: "training"
+  DEPLOYMENT_NAME: "task-api"
+  CONTAINER_NAME: "task-api"
+  IMAGE_NAME: "task-api"
+  TLS_HOSTNAME: "task-api.local"
+
+jobs:
+  # Ungepruefter Pull-Request-Code laeuft nicht auf dem privilegierten
+  # Self-hosted Runner. GitHub stellt dafuer einen isolierten Runner bereit.
+  verify:
+    name: Verify application
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Java 21 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Gradle Wrapper ausfuehrbar machen
+        run: chmod +x gradlew
+
+      - name: Anwendung bauen und testen
+        # Die Integrationstests starten eine temporaere MariaDB mit Testcontainers.
+        run: ./gradlew clean test bootJar
+
+      - name: Testberichte bei Fehlern sichern
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ github.run_id }}
+          path: build/reports/tests/test
+          if-no-files-found: ignore
+          retention-days: 7
+
+  deploy:
+    name: Deploy to local Minikube
+    needs: verify
+
+    # Nur ein Push auf main darf die gemeinsame Schulungsumgebung veraendern.
+    # Pull Requests, Feature-Branches und dev werden lediglich geprueft.
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
+
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+    timeout-minutes: 40
+
+    concurrency:
+      group: task-api-minikube-deployment
+      cancel-in-progress: false
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Java 21 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Skripte ausfuehrbar machen
+        run: chmod +x gradlew scripts/*.sh
+
+      - name: VM und Minikube mit Ansible pruefen
+        # Ansible kontrolliert den durch den Bootstrap hergestellten Host-Zustand
+        # und startet Minikube bei Bedarf.
+        run: >-
+          ansible-playbook
+          --inventory ansible/inventory.ini
+          ansible/playbook.yml
+
+      - name: Auslieferbares JAR bauen
+        # Die Tests liefen bereits im Verify-Job.
+        run: ./gradlew clean bootJar -x test
+
+      - name: Namespace mit OpenTofu verwalten
+        # OpenTofu verwaltet in dieser Schulung bewusst nur die langlebige
+        # Infrastrukturgrenze. Die Workloads bleiben als Kubernetes-YAML sichtbar.
+        run: ./scripts/tofu.sh apply
+
+      - name: Datenbank-Secret sicherstellen
+        env:
+          DB_PASSWORD: ${{ secrets.TRAINING_DB_PASSWORD }}
+          DB_ROOT_PASSWORD: ${{ secrets.TRAINING_DB_ROOT_PASSWORD }}
+        run: ./scripts/ensure-database-secret.sh
+
+      - name: MariaDB deployen
+        run: |
+          kubectl apply --namespace "${K8S_NAMESPACE}" --filename k8s/configmap.yaml
+          kubectl apply --namespace "${K8S_NAMESPACE}" --filename k8s/mariadb-service.yaml
+          kubectl apply --namespace "${K8S_NAMESPACE}" --filename k8s/mariadb-statefulset.yaml
+          kubectl rollout status --namespace "${K8S_NAMESPACE}" \
+            statefulset/mariadb --timeout=300s
+
+      - name: Unveraenderlichen Image-Tag setzen
+        run: echo "IMAGE_TAG=${GITHUB_SHA::12}" >> "${GITHUB_ENV}"
+
+      - name: Task-API-Image direkt in Minikube bauen
+        # Fuer die lokale Demo wird keine externe Container Registry benoetigt.
+        run: |
+          minikube image build --profile "${MINIKUBE_PROFILE}" \
+            --tag "${IMAGE_NAME}:${IMAGE_TAG}" .
+          minikube image ls --profile "${MINIKUBE_PROFILE}" \
+            | grep -F "${IMAGE_NAME}:${IMAGE_TAG}"
+
+      - name: Task-API deployen
+        run: |
+          kubectl apply --namespace "${K8S_NAMESPACE}" --filename k8s/service.yaml
+          kubectl apply --namespace "${K8S_NAMESPACE}" --filename k8s/pod-disruption-budget.yaml
+          sed "s|task-api:IMAGE_TAG|${IMAGE_NAME}:${IMAGE_TAG}|g" k8s/deployment.yaml \
+            | kubectl apply --namespace "${K8S_NAMESPACE}" --filename -
+
+      - name: Lokales TLS-Zertifikat und Ingress bereitstellen
+        # Private Schluessel werden ausserhalb des Repositorys gespeichert.
+        run: |
+          ./scripts/ensure-tls-secret.sh
+          kubectl apply --namespace "${K8S_NAMESPACE}" --filename k8s/ingress.yaml
+
+      - name: Rollout abwarten
+        run: >-
+          kubectl rollout status
+          --namespace "${K8S_NAMESPACE}"
+          "deployment/${DEPLOYMENT_NAME}"
+          --timeout=300s
+
+      - name: API-Smoke-Test ueber HTTP und HTTPS
+        run: |
+          kubectl get statefulset,deployment,pods,service,ingress,pvc \
+            --namespace "${K8S_NAMESPACE}" --output wide
+          ./scripts/smoke-test.sh
+          ./scripts/smoke-test-https.sh
+
+      - name: Diagnose bei Fehlern
+        if: failure()
+        run: |
+          kubectl get statefulset,deployment,pods,service,ingress,replicaset,pvc \
+            --namespace "${K8S_NAMESPACE}" --output wide || true
+          kubectl describe pods --namespace "${K8S_NAMESPACE}" || true
+          kubectl get events --namespace "${K8S_NAMESPACE}" \
+            --sort-by=.metadata.creationTimestamp || true
+
+          for pod in $(kubectl get pods --namespace "${K8S_NAMESPACE}" -o name 2>/dev/null); do
+            echo "=== ${pod} ==="
+            kubectl logs --namespace "${K8S_NAMESPACE}" "${pod}" \
+              --all-containers=true --tail=200 || true
+            kubectl logs --namespace "${K8S_NAMESPACE}" "${pod}" \
+              --all-containers=true --previous --tail=200 || true
+          done

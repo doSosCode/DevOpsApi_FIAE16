@@ -119,3 +119,34 @@ curl \
 - [`docs/ZERTIFIKATE_UND_HTTPS.md`](docs/ZERTIFIKATE_UND_HTTPS.md)
 - [`docs/API.md`](docs/API.md)
 - [`docs/ARCHITECTURE_AND_SECURITY.md`](docs/ARCHITECTURE_AND_SECURITY.md)
+
+## GitHub-Actions-Workflows
+
+Die Workflow-Dateien liegen im versteckten Verzeichnis `.github/workflows/`:
+
+```text
+.github/workflows/bootstrap-vm.yml
+.github/workflows/ci-cd.yml
+.github/workflows/validate-main-source.yml
+```
+
+Unter Linux werden versteckte Verzeichnisse mit folgendem Befehl angezeigt:
+
+```bash
+ls -la .github/workflows
+```
+
+Die Aufteilung lautet:
+
+```text
+bootstrap-vm.yml
+→ richtet die Ubuntu-VM mit Ansible ein
+
+ci-cd.yml
+→ prueft Pull Requests nach dev und main
+→ prueft Pushes nach dev und main
+→ deployt ausschliesslich nach einem Push beziehungsweise Merge auf main
+
+validate-main-source.yml
+→ erlaubt fuer main nur dev als Quellbranch
+```
