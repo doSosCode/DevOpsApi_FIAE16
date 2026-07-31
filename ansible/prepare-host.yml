@@ -54,6 +54,30 @@
         state: present
         update_cache: true
         cache_valid_time: 3600
+        
+    - name: Internal Fortinet CA certificate present
+      ansible.builtin.stat:
+        path: /usr/local/share/ca-certificates/fortinet.crt
+      register: fortinet_ca
+
+    - name: Update system CA certificates
+      ansible.builtin.command:
+        cmd: update-ca-certificates
+      when: fortinet_ca.stat.exists
+      register: ca_update
+      changed_when: "'0 added' not in ca_update.stdout"
+
+    - name: Restart Docker after CA update
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+      when: fortinet_ca.stat.exists
+   
+   - name: Verify Docker can access Kubernetes registry
+      ansible.builtin.command:
+        cmd: docker pull registry.k8s.io/pause:3.10
+      register: docker_registry_test
+      changed_when: false
 
     - name: Globale Git-Konfiguration fuer den Runner-Benutzer schreiben
       # Die Datei liegt bewusst im Home des normalen Benutzers und nicht unter /root.
