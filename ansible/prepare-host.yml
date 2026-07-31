@@ -12,12 +12,12 @@
     runner_user: "devops"
     runner_home: "/home/devops"
 
-    # Die Werte kommen als Workflow-Inputs ueber Umgebungsvariablen. Dadurch
-    # werden keine Benutzereingaben direkt in einen Shell-Befehl interpoliert.
+    # Die Werte kommen als Workflow-Inputs über Umgebungsvariablen.
     git_user_name: "{{ lookup('env', 'TRAINING_GIT_USER_NAME') }}"
     git_user_email: "{{ lookup('env', 'TRAINING_GIT_USER_EMAIL') }}"
 
   tasks:
+
     - name: Unterstütztes Betriebssystem prüfen
       ansible.builtin.assert:
         that:
@@ -50,11 +50,12 @@
           - python3-apt
           - unzip
           - openjdk-21-jdk
+          - openjdk-21-jre
           - docker.io
         state: present
         update_cache: true
         cache_valid_time: 3600
-        
+
     - name: Internal Fortinet CA certificate present
       ansible.builtin.stat:
         path: /usr/local/share/ca-certificates/fortinet.crt
@@ -67,24 +68,43 @@
       register: ca_update
       changed_when: "'0 added' not in ca_update.stdout"
 
-    - name: Restart Docker after CA update
+    - name: Configure Docker registry CA trust directory
+      ansible.builtin.file:
+        path: /etc/docker/certs.d/registry.k8s.io
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: fortinet_ca.stat.exists
+
+    - name: Install Fortinet CA for Docker registry trust
+      ansible.builtin.copy:
+        src: /usr/local/share/ca-certificates/fortinet.crt
+        dest: /etc/docker/certs.d/registry.k8s.io/ca.crt
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+      when: fortinet_ca.stat.exists
+
+    - name: Restart Docker after CA configuration
       ansible.builtin.systemd:
         name: docker
         state: restarted
       when: fortinet_ca.stat.exists
-   
-   - name: Verify Docker can access Kubernetes registry
+
+    - name: Verify Docker can access Kubernetes registry
       ansible.builtin.command:
         cmd: docker pull registry.k8s.io/pause:3.10
       register: docker_registry_test
       changed_when: false
 
     - name: Globale Git-Konfiguration fuer den Runner-Benutzer schreiben
-      # Die Datei liegt bewusst im Home des normalen Benutzers und nicht unter /root.
       ansible.builtin.template:
         src: templates/gitconfig.j2
         dest: "{{ runner_home }}/.gitconfig"
         owner: "{{ runner_user }}"
+        group: "{{ runner_user }}"
         mode: "0600"
 
     - name: Docker-Dienst starten und beim Booten aktivieren
@@ -98,7 +118,7 @@
         name: "{{ runner_user }}"
         groups: docker
         append: true
-
+        
     - name: Systemarchitektur für Binärdownloads bestimmen
       ansible.builtin.set_fact:
         binary_arch: "{{ 'amd64' if ansible_architecture in ['x86_64', 'amd64'] else 'arm64' }}"
@@ -158,6 +178,8 @@
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
+        owner: "{{ runner_user }}"
+        group: "{{ runner_user }}"
         mode: "0700"
       loop:
         - "{{ runner_home }}/.kube"
