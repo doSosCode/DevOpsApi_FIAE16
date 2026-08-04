@@ -20,7 +20,7 @@ permissions:
 env:
   JAVA_VERSION: "21"
   MINIKUBE_PROFILE: "minikube"
-  K8S_NAMESPACE: "training"
+  K8S_NAMESPACE: "default"
   DEPLOYMENT_NAME: "task-api"
   CONTAINER_NAME: "task-api"
   IMAGE_NAME: "task-api"
