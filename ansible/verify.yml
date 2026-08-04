@@ -55,7 +55,6 @@
     - name: Restart Minikube after CA installation
       ansible.builtin.command:
         cmd: minikube stop -p minikube && minikube start -p minikube
-      when: fortinet_ca.stat.exists
 
     - name: NGINX-Ingress-Addon aktivieren
       ansible.builtin.command:
