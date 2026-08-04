@@ -57,9 +57,6 @@
       register: nodes
       changed_when: false
 
-    - debug:
-      var: nodes.stdout
-
     - name: Show all pods
       command: kubectl get pods -A
       register: pods
