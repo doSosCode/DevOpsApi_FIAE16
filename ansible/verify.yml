@@ -52,10 +52,6 @@
       when: minikube_status.rc != 0
       changed_when: true
 
-    - name: Restart Minikube after CA installation
-      ansible.builtin.command:
-        cmd: minikube stop -p minikube && minikube start -p minikube
-
     - name: NGINX-Ingress-Addon aktivieren
       ansible.builtin.command:
         cmd: minikube addons enable ingress --profile "{{ minikube_profile }}"
