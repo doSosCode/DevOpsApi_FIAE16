@@ -56,27 +56,6 @@
         update_cache: true
         cache_valid_time: 3600
 
-    - name: Internal Fortinet CA certificate present
-      ansible.builtin.stat:
-        path: /usr/local/share/ca-certificates/fortinet.crt
-      register: fortinet_ca
-
-    - name: Update system CA certificates
-      ansible.builtin.command:
-        cmd: update-ca-certificates
-      when: fortinet_ca.stat.exists
-      register: ca_update
-      changed_when: "'0 added' not in ca_update.stdout"
-
-    - name: Copy Fortinet CA to runner home for Minikube access
-      ansible.builtin.copy:
-        src: /usr/local/share/ca-certificates/fortinet.crt
-        dest: "{{ runner_home }}/fortinet.crt"
-        owner: "{{ runner_user }}"
-        group: "{{ runner_user }}"
-        mode: "0644"
-      when: fortinet_ca.stat.exists
-
     - name: Configure Docker registry CA trust directory
       ansible.builtin.file:
         path: /etc/docker/certs.d/registry.k8s.io
