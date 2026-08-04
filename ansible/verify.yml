@@ -62,9 +62,6 @@
       register: pods
       changed_when: false
 
-    - debug:
-      var: pods.stdout
-
     - name: NGINX-Ingress-Addon aktivieren
       ansible.builtin.command:
         cmd: minikube addons enable ingress --profile "{{ minikube_profile }}"
