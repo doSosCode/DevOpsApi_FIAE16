@@ -63,23 +63,11 @@
         owner: root
         group: root
         mode: "0755"
-      when: fortinet_ca.stat.exists
-
-    - name: Install Fortinet CA for Docker registry trust
-      ansible.builtin.copy:
-        src: /usr/local/share/ca-certificates/fortinet.crt
-        dest: /etc/docker/certs.d/registry.k8s.io/ca.crt
-        remote_src: true
-        owner: root
-        group: root
-        mode: "0644"
-      when: fortinet_ca.stat.exists
 
     - name: Restart Docker after CA configuration
       ansible.builtin.systemd:
         name: docker
         state: restarted
-      when: fortinet_ca.stat.exists
 
     - name: Verify Docker can access Kubernetes registry
       ansible.builtin.command:
@@ -150,7 +138,6 @@
         owner: root
         group: root
         mode: "0755"
-      when: fortinet_ca.stat.exists
 
     - name: Copy Fortinet CA for Minikube
       ansible.builtin.copy:
@@ -160,8 +147,7 @@
         owner: root
         group: root
         mode: "0644"
-      when: fortinet_ca.stat.exists
-
+        
     - name: Prüfen, ob OpenTofu bereits installiert ist
       ansible.builtin.command: tofu version
       register: tofu_version
