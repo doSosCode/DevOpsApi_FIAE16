@@ -52,21 +52,6 @@
       when: minikube_status.rc != 0
       changed_when: true
 
-    - name: Check Fortinet CA exists
-      ansible.builtin.stat:
-        path: /usr/local/share/ca-certificates/fortinet.crt
-      register: fortinet_ca
-
-    - name: Copy Fortinet CA into Minikube node
-      ansible.builtin.shell: |
-        minikube ssh -p minikube <<'EOF'
-        sudo mkdir -p /usr/local/share/ca-certificates
-        sudo sh -c 'cat > /usr/local/share/ca-certificates/fortinet.crt' < /hosthome/devops/fortinet.crt
-        sudo update-ca-certificates
-        EOF
-      when: fortinet_ca.stat.exists
-      changed_when: true
-
     - name: Restart Minikube after CA installation
       ansible.builtin.command:
         cmd: minikube stop -p minikube && minikube start -p minikube
