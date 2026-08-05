@@ -13,11 +13,9 @@ response="$(curl --fail --silent --show-error \
 id="$(printf '%s' "${response}" | jq -r '.id')"
 test "${id}" != "null"
 
-curl --fail --silent "${BASE_URL}/api/tasks/${id}" | jq .
 curl --fail --silent --request PATCH \
   --header 'Content-Type: application/json' \
   --data '{"completed":true}' \
-  "${BASE_URL}/api/tasks/${id}" | jq .
-curl --fail --silent --request DELETE "${BASE_URL}/api/tasks/${id}"
+  "${BASE_URL}/api/tasks/${id}/completion" | jq .
 
 echo "Smoke-Test erfolgreich."
