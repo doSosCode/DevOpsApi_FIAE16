@@ -1,7 +1,7 @@
 variable "namespace" {
   type        = string
   description = "Kubernetes-Namespace"
-  default     = "training"
+  default     = "default"
 }
 
 variable "application_name" {
