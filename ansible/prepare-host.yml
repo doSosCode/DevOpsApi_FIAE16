@@ -58,7 +58,7 @@
         
     - name: Install Docker
       ansible.builtin.apt:
-      update_cache: true
+        update_cache: true
         name:
           - docker.io
         state: present
