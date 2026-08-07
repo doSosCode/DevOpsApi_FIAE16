@@ -55,6 +55,19 @@
         state: present
         update_cache: true
         cache_valid_time: 3600
+        
+    - name: Install Docker
+      ansible.builtin.apt:
+      update_cache: true
+        name:
+          - docker.io
+        state: present
+
+    - name: Enable Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
 
     - name: Configure Docker registry CA trust directory
       ansible.builtin.file:
