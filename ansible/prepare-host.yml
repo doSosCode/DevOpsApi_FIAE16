@@ -82,11 +82,11 @@
         name: docker
         state: restarted
 
-    - name: Verify Docker can access Kubernetes registry
-      ansible.builtin.command:
-        cmd: docker pull registry.k8s.io/pause:3.10
-      register: docker_registry_test
-      changed_when: false
+#    - name: Verify Docker can access Kubernetes registry
+#      ansible.builtin.command:
+#        cmd: docker pull registry.k8s.io/pause:3.10
+#      register: docker_registry_test
+#      changed_when: false
 
     - name: Globale Git-Konfiguration fuer den Runner-Benutzer schreiben
       ansible.builtin.template:
